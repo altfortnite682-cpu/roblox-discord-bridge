@@ -21,63 +21,72 @@ client.on('messageCreate', async (message) => {
     const args = message.content.split(' ');
     const command = args[0].toLowerCase();
 
-    // Help Menu Update
+    // 1. VIEW COMMANDS LIST
     if (command === '!commands') {
         const helpEmbed = new EmbedBuilder()
             .setColor('#0099ff')
-            .setTitle('🤖 Advanced Roblox Bot Controller')
+            .setTitle('🤖 Roblox Bot Controller Commands')
+            .setDescription('Use these commands to control the live in-game humanoid:')
             .addFields(
-                { name: '`!walk <direction>`', value: 'forward, backward, left, right' },
-                { name: '`!chat <text>`', value: 'Makes the bot say text visibly.' },
-                { name: '`!emote <ID>`', value: 'Plays a Roblox animation ID.' },
-                { name: '`!rig <r6/r15>`', value: 'Switches the bot model type.' },
-                { name: '`!shirt <ID>` / `!pants <ID>`', value: 'Applies clothing asset IDs.' },
-                { name: '`!run <action>`', value: 'Runs a built-in function (e.g., dance, custom).' }
+                { name: '`!commands`', value: 'Displays this list.' },
+                { name: '`!walk <forward/backward/left/right>`', value: 'Moves the bot a few studs in a relative direction.' },
+                { name: '`!move <X> <Y> <Z>`', value: 'Moves the bot to exact map coordinates.' },
+                { name: '`!follow <Username>`', value: 'Tracks a player and copies basic actions (like jumping).' },
+                { name: '`!unfollow`', value: 'Stops following a player.' },
+                { name: '`!chat <Text>`', value: 'Makes the bot speak out loud.' },
+                { name: '`!jump`', value: 'Forces the bot to jump.' },
+                { name: '`!shirt <ID>` / `!pants <ID>`', value: 'Changes clothes using a Roblox clothing catalog ID.' }
             );
+
         return message.reply({ embeds: [helpEmbed] });
     }
 
+    // 2. DIRECTIONAL RELATIVE MOVEMENT
     if (command === '!walk') {
-        const dir = args[1]?.toLowerCase();
-        if (!['forward', 'backward', 'left', 'right'].includes(dir)) return message.reply("❌ Invalid direction.");
-        currentCommand = { action: "walk", direction: dir };
-        return message.reply(`🏃 Bot walking ${dir}.`);
+        const direction = args[1]?.toLowerCase();
+        if (!['forward', 'backward', 'left', 'right'].includes(direction)) {
+            return message.reply("❌ Invalid direction! Use: `!walk forward`, `!walk backward`, `!walk left`, or `!walk right`.");
+        }
+        currentCommand = { action: "walk", direction: direction };
+        return message.reply(`🏃 Bot is walking **${direction}**.`);
+    }
+
+    // Retaining standard commands from previous version
+    if (command === '!move') {
+        const x = parseFloat(args[1]), y = parseFloat(args[2]), z = parseFloat(args[3]);
+        if (isNaN(x) || isNaN(y) || isNaN(z)) return message.reply("❌ Use: `!move X Y Z`");
+        currentCommand = { action: "move", x, y, z };
+        message.reply(`🎯 Manual move coordinate sent.`);
     }
     else if (command === '!chat') {
         const msg = args.slice(1).join(' ');
-        if (!msg) return message.reply("❌ Provide a message.");
+        if (!msg) return message.reply("❌ Use: `!chat <text>`");
         currentCommand = { action: "chat", message: msg };
-        return message.reply(`💬 Sent chat message.`);
     }
-    else if (command === '!emote') {
-        if (!args[1] || isNaN(args[1])) return message.reply("❌ Provide an Animation ID.");
-        currentCommand = { action: "emote", id: args[1] };
-        return message.reply(`🎭 Playing animation ID: ${args[1]}`);
+    else if (command === '!jump') {
+        currentCommand = { action: "jump" };
     }
-    else if (command === '!rig') {
-        const rigType = args[1]?.toLowerCase();
-        if (rigType !== 'r6' && rigType !== 'r15') return message.reply("❌ Use `!rig r6` or `!rig r15`.");
-        currentCommand = { action: "rig", type: rigType };
-        return message.reply(`🔄 Switching rig to ${rigType.toUpperCase()}...`);
+    else if (command === '!follow') {
+        if (!args[1]) return message.reply("❌ Use: `!follow <Username>`");
+        currentCommand = { action: "follow", player: args[1] };
+        message.reply(`👀 Following and copying actions of **${args[1]}**.`);
+    }
+    else if (command === '!unfollow') {
+        currentCommand = { action: "unfollow" };
     }
     else if (command === '!shirt' || command === '!pants') {
-        if (!args[1] || isNaN(args[1])) return message.reply("❌ Provide a valid asset ID.");
+        if (!args[1] || isNaN(args[1])) return message.reply("❌ Specify a numeric Asset ID.");
         currentCommand = { action: command.replace('!', ''), id: args[1] };
-        return message.reply(`👕 Updating appearance...`);
-    }
-    else if (command === '!run') {
-        const actionName = args[1]?.toLowerCase();
-        if (!actionName) return message.reply("❌ Specify a function to run.");
-        currentCommand = { action: "run", target: actionName };
-        return message.reply(`⚡ Running pre-set function: ${actionName}`);
     }
 });
 
 app.get('/get-command', (req, res) => {
     res.json(currentCommand);
-    if (currentCommand.action !== "idle") currentCommand = { action: "idle" };
+    if (currentCommand.action !== "idle" && currentCommand.action !== "follow") {
+        currentCommand = { action: "idle" };
+    }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🌐 Live on port ${PORT}`));
+app.listen(PORT, () => console.log(`🌐 Server running on port ${PORT}`));
 if (DISCORD_TOKEN) client.login(DISCORD_TOKEN);
